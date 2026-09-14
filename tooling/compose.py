@@ -2,7 +2,16 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import sys, json
 
 FONTS = "C:/Windows/Fonts/"
-def font(name, size): return ImageFont.truetype(FONTS+name, size)
+FONT_FALLBACKS = {
+    "seguibl.ttf": "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "segoeui.ttf": "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "segoeuib.ttf": "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+}
+def font(name, size):
+    try:
+        return ImageFont.truetype(FONTS+name, size)
+    except OSError:
+        return ImageFont.truetype(FONT_FALLBACKS[name], size)
 
 W, H = 1080, 1350
 
