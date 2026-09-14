@@ -1,8 +1,24 @@
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-import sys, json
+import sys, json, os
 
-FONTS = "C:/Windows/Fonts/"
-def font(name, size): return ImageFont.truetype(FONTS+name, size)
+# Cross-platform fonts: prefer Segoe UI on Windows, fall back to DejaVu on Linux
+# (the cloud runner is Linux and has no Windows fonts). Each logical weight maps
+# to the first file that exists.
+_FONT_DIRS = ["C:/Windows/Fonts/", "/usr/share/fonts/truetype/dejavu/",
+              "/usr/share/fonts/truetype/freefont/"]
+_FONT_ALIASES = {
+    "seguibl.ttf":  ["seguibl.ttf", "DejaVuSans-Bold.ttf", "FreeSansBold.ttf"],
+    "segoeuib.ttf": ["segoeuib.ttf", "DejaVuSans-Bold.ttf", "FreeSansBold.ttf"],
+    "segoeui.ttf":  ["segoeui.ttf", "DejaVuSans.ttf", "FreeSans.ttf"],
+}
+def _resolve(name):
+    for cand in _FONT_ALIASES.get(name, [name]):
+        for d in _FONT_DIRS:
+            p = d + cand
+            if os.path.exists(p):
+                return p
+    return name  # let PIL try / raise
+def font(name, size): return ImageFont.truetype(_resolve(name), size)
 
 W, H = 1080, 1350
 
