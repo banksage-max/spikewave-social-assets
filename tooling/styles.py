@@ -331,8 +331,115 @@ def three_steps(s, app):
     return c
 
 
+def _paid_frame(size, s, app, with_text=True):
+    """Paid-ad frame (research, 25 Oct 2026): brand colour, one real screen, a 4-6 word headline (<20% of the
+    area), small icon sign-off. with_text=False gives the text- and logo-free version Google asks for."""
+    Wd, Hd = size
+    k = min(Wd, Hd) / 1080
+    c = grad((Wd, Hd), app["accent"], app["accent2"])
+    glow(c, (int(Wd * 0.85), int(Hd * 0.15)), int(420 * k), (255, 255, 255), 38)
+    d = ImageDraw.Draw(c)
+    landscape = Wd > Hd * 1.3
+    sc = shot(s["shot"])
+    if landscape:
+        if with_text:
+            hf = font("black", int(64 * Hd / 628))
+            lines = wrap(d, s["headline"], hf, int(Wd * 0.48))
+            y = (Hd - len(lines) * int(hf.size * 1.08)) // 2 - int(30 * Hd / 628)
+            text_block(d, (int(48 * Hd / 628), y), s["headline"], hf, app["ink"], int(Wd * 0.48))
+            footer_small(c, app, app["ink"], int(48 * Hd / 628), Hd - int(70 * Hd / 628), int(Hd / 628 * 34))
+        ph = int(Hd * 1.15)
+        pw = int(1080 * ph / 2340)
+        x = int(Wd * 0.62) if with_text else (Wd - pw) // 2
+        phone(c, sc, x, int(Hd * 0.12), ph, bezel=int(10 * Hd / 628), r=int(40 * Hd / 628), tilt=6 if with_text else 0)
+        return c
+    top = int(80 * k)
+    if with_text:
+        hf = font("black", int(92 * k))
+        top = text_block(d, (int(72 * k), int(72 * k)), s["headline"], hf, app["ink"], Wd - int(144 * k), lh=1.06)
+        top += int(48 * k)
+    ph = int(Hd * (1.05 if Hd > Wd else 1.0))
+    pw = int(1080 * ph / 2340)
+    phone(c, sc, (Wd - pw) // 2, max(top, int(Hd * 0.08)), ph, bezel=int(14 * k), r=int(58 * k))
+    if with_text:
+        footer_small(c, app, app["ink"], int(72 * k), Hd - int(96 * k), int(40 * k), plate=True)
+    return c
+
+
+def footer_small(c, app, colour, x, y, size, plate=False):
+    """Icon + app name only (no URL), for paid frames."""
+    d = ImageDraw.Draw(c)
+    f = font("bold", int(size * 0.8))
+    tw = d.textlength(app["name"], font=f)
+    if plate:
+        d.rounded_rectangle([x - size // 4, y - size // 4, x + size + 16 + tw + size // 3, y + size + size // 4],
+                            radius=size // 2, fill=(255, 255, 255, 235))
+        colour = INK
+    ic = icon(app["slug"], size)
+    if ic:
+        c.alpha_composite(ic, (x, y))
+    d.text((x + size + 14, y + size // 2), app["name"], font=f, fill=colour, anchor="lm")
+
+
+PAID_SIZES = {"1x1": (1080, 1080), "4x5": (1080, 1350), "9x16": (1080, 1920), "191x1": (1200, 628)}
+
+
+def paid_set(s, app):
+    """All paid sizes, with and without text: returns [(suffix, image)]."""
+    out = [(k, _paid_frame(v, s, app)) for k, v in PAID_SIZES.items()]
+    out += [(k + "-notext", _paid_frame(v, s, app, with_text=False)) for k, v in PAID_SIZES.items() if k != "9x16"]
+    return out
+
+
+def ui_float(s, app):
+    """One or two real UI cards floating without a phone, on a soft app-tinted ground."""
+    base = tuple(int(CREAM[i] * 0.9 + app["accent"][i] * 0.1) for i in range(3))
+    c = Image.new("RGBA", (W, H), base + (255,))
+    glow(c, (W - 160, 260), 360, app["accent"], 50)
+    d = ImageDraw.Draw(c)
+    caps(d, (72, 72), s.get("kicker", app["name"]), font("cond", 30), app["accent2"])
+    y = text_block(d, (72, 120), s["headline"], font("serif", 78), INK, W - 144, lh=1.1)
+    cards = [(s["crop"], -3, 0)] + ([(s["crop2"], 4, 1)] if s.get("crop2") else [])
+    top = y + 60
+    for crop, tilt, i in cards:
+        im = shot(s["shot2"] if i and s.get("shot2") else s["shot"], tuple(crop))
+        cw = 860 if i == 0 else 700
+        ch = int(im.height * cw / im.width)
+        L = rounded(im.resize((cw, ch), Image.LANCZOS), 34)
+        x = (W - cw) // 2 - 40 + i * 120
+        place(c, L, x, top + i * (ch // 2 + 60), tilt)
+    footer(c, app, INK, MUTED)
+    return c
+
+
+def carousel(s, app):
+    """Swipeable panorama: slide 1 is the hook, then one real screen per step; a line runs across slides."""
+    steps = s["steps"]
+    n = 1 + len(steps)
+    P = grad((W * n, H), app["dark"], (30, 32, 38))
+    for i in range(n):
+        glow(P, (W * i + W // 2, 700), 460, app["accent"], 30)
+    d = ImageDraw.Draw(P)
+    caps(d, (72, 96), app["name"], font("cond", 34), app["accent"])
+    text_block(d, (72, 150), s["headline"], font("black", 96), (244, 244, 248), W - 160, lh=1.06)
+    text_block(d, (72, H - 260), s.get("sub", "Swipe to see how →"), font("semi", 36), (190, 194, 206), W - 144)
+    ly = H - 190
+    d.line([(W - 200, ly), (W * n - 520, ly)], fill=app["accent"], width=4)
+    h = 760; w = int(1080 * h / 2340)
+    for i, (path, label) in enumerate(steps):
+        cx = W * (i + 1) + W // 2
+        x = cx - w // 2 - (180 if i == 0 else 0)
+        phone(P, shot(path), x, 270, h, tilt=-6 if i == 0 else 0)
+        d.ellipse([cx - 28, ly - 28, cx + 28, ly + 28], fill=app["accent"])
+        d.text((cx, ly), str(i + 1), font=font("bold", 30), fill=app["ink"], anchor="mm")
+        text_block(d, (W * (i + 1) + 72, 110), label, font("bold", 60), (244, 244, 248), W - 144, align="center")
+    slides = [P.crop((W * i, 0, W * (i + 1), H)) for i in range(n)]
+    footer(slides[-1], app, app["accent"], (150, 154, 166), x=W - 560, y=H - 100)
+    return [(f"{i + 1}", sl) for i, sl in enumerate(slides)]
+
+
 STYLES = {f.__name__: f for f in (bold_block, editorial_light, detail_callouts, big_number, problem_type,
-                                   split_compare, minimal_phone, three_steps)}
+                                   split_compare, minimal_phone, three_steps, paid_set, ui_float, carousel)}
 
 
 def grain(img, amount=5):
@@ -343,11 +450,20 @@ def grain(img, amount=5):
 
 
 def render(spec):
+    """Render one spec. Multi-image styles (paid_set, carousel) write <out stem>-<suffix>.png for each image."""
     app = APPS[spec["app"]]
-    img = grain(STYLES[spec["style"]](spec, app).convert("RGB"))
+    res = STYLES[spec["style"]](spec, app)
     os.makedirs(os.path.dirname(os.path.abspath(spec["out"])), exist_ok=True)
-    img.save(spec["out"], quality=95)
-    return spec["out"]
+    if not isinstance(res, list):
+        grain(res.convert("RGB")).save(spec["out"], quality=95)
+        return spec["out"]
+    stem, ext = os.path.splitext(spec["out"])
+    outs = []
+    for suffix, img in res:
+        p = f"{stem}-{suffix}{ext}"
+        grain(img.convert("RGB")).save(p, quality=95)
+        outs.append(p)
+    return ", ".join(outs)
 
 
 if __name__ == "__main__":
