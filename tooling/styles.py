@@ -8,6 +8,7 @@ Real screens only: every screen comes from source-screenshots/ or a clip frame.
 """
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import json, os, sys
+import numpy as np
 
 W, H = 1080, 1350
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -42,7 +43,7 @@ def font(kind, size):
 
 
 # App palettes (content/app-visuals.md). accent2 = deeper shade, ink = text on accent.
-APPS = {
+APPS = {  # slug added below
     "leave_by": dict(name="Leave By", accent=(255, 122, 61), accent2=(240, 74, 18), dark=(17, 17, 19),
                      ink=(20, 12, 8), cta="Free on Google Play"),
     "which_box": dict(name="Which Box", accent=(134, 231, 212), accent2=(49, 108, 100), dark=(17, 20, 19),
@@ -50,6 +51,8 @@ APPS = {
     "knock": dict(name="Knock", accent=(96, 165, 250), accent2=(37, 99, 235), dark=(11, 15, 25),
                   ink=(5, 12, 30), cta="Live on Google Play"),
 }
+for _k, _v in APPS.items():
+    _v["slug"] = _k
 CREAM, INK, MUTED = (245, 239, 230), (22, 22, 24), (120, 116, 110)
 
 
@@ -72,18 +75,66 @@ def shadow(canvas, box, r, blur=36, alpha=150, off=(0, 24)):
     canvas.alpha_composite(s.filter(ImageFilter.GaussianBlur(blur)))
 
 
-def phone(canvas, im, x, y, h, bezel=14, r=58, bezel_col=(24, 26, 32), shade=True):
-    """Screen in a simple device frame; returns the frame box."""
+def device(im, h, bezel=14, r=58):
+    """Phone body: metal rim, black bezel, side buttons, punch-hole camera, faint screen glare."""
     w = int(im.width * h / im.height)
-    scr = rounded(im.resize((w, h), Image.LANCZOS), r - bezel // 2)
-    box = (x - bezel, y - bezel, x + w + bezel, y + h + bezel)
-    if shade:
-        shadow(canvas, box, r)
-    f = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-    ImageDraw.Draw(f).rounded_rectangle(box, radius=r, fill=bezel_col + (255,), outline=(60, 64, 74, 255), width=2)
-    canvas.alpha_composite(f)
-    canvas.alpha_composite(scr, (x, y))
-    return box
+    bw, bh, ox = w + 2 * bezel, h + 2 * bezel, 8
+    L = Image.new("RGBA", (bw + 2 * ox, bh), (0, 0, 0, 0))
+    d = ImageDraw.Draw(L)
+    k = h / 1400
+    for (y0, ln, side) in ((0.20, 0.10, 1), (0.17, 0.06, 0), (0.25, 0.10, 0)):
+        x0 = ox + bw - 3 if side else ox - 5
+        d.rounded_rectangle([x0, int(bh * y0), x0 + 8, int(bh * (y0 + ln))], radius=3, fill=(58, 62, 70, 255))
+    d.rounded_rectangle([ox, 0, ox + bw - 1, bh - 1], radius=r, fill=(112, 118, 130, 255))
+    d.rounded_rectangle([ox + 2, 2, ox + bw - 3, bh - 3], radius=r - 2, fill=(44, 47, 54, 255))
+    d.rounded_rectangle([ox + 4, 4, ox + bw - 5, bh - 5], radius=r - 4, fill=(8, 8, 10, 255))
+    scr = rounded(im.resize((w, h), Image.LANCZOS), max(r - bezel, 8))
+    L.alpha_composite(scr, (ox + bezel, bezel))
+    cx, cy, cr = ox + bezel + w // 2, bezel + int(26 * k), max(int(10 * k), 4)
+    d.ellipse([cx - cr, cy - cr, cx + cr, cy + cr], fill=(4, 4, 6, 255), outline=(30, 32, 38, 255))
+    glare = Image.new("L", (w, h), 0)
+    gd = ImageDraw.Draw(glare)
+    for i in range(0, w + h, 4):
+        a = max(0, 16 - i * 16 // int((w + h) * 0.55))
+        if a: gd.line([(i, 0), (0, i)], fill=a, width=4)
+    gl = Image.new("RGBA", (w, h), (255, 255, 255, 0)); gl.putalpha(Image.composite(glare, Image.new("L", (w, h), 0), scr.split()[3]))
+    L.alpha_composite(gl, (ox + bezel, bezel))
+    return L, ox + bezel, bezel
+
+
+def place(canvas, layer, x, y, tilt=0):
+    """Composite a device layer with a soft ambient shadow and a tighter contact shadow."""
+    if tilt:
+        layer = layer.rotate(tilt, resample=Image.BICUBIC, expand=True)
+    a = layer.split()[3]
+    for blur, alpha, dy in ((60, 0.45, 50), (14, 0.35, 10)):
+        sh = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+        m = Image.new("L", canvas.size, 0); m.paste(a.point(lambda v: int(v * alpha)), (x, y + dy))
+        sh.putalpha(m.filter(ImageFilter.GaussianBlur(blur)))
+        canvas.alpha_composite(sh)
+    canvas.alpha_composite(layer, (x, y))
+
+
+def phone(canvas, im, x, y, h, bezel=14, r=58, bezel_col=None, shade=True, tilt=0):
+    """Screen top-left at (x, y), screen height h, in a realistic device; returns the device box."""
+    L, sx, sy = device(im, h, bezel, r)
+    place(canvas, L, x - sx, y - sy, tilt)
+    return (x - sx, y - sy, x - sx + L.width, y - sy + L.height)
+
+
+def glow(c, xy, radius, colour, alpha=90):
+    g = Image.new("RGBA", c.size, (0, 0, 0, 0))
+    x, y = xy
+    ImageDraw.Draw(g).ellipse([x - radius, y - radius, x + radius, y + radius], fill=tuple(colour) + (alpha,))
+    c.alpha_composite(g.filter(ImageFilter.GaussianBlur(radius * 0.6)))
+
+
+def caps(d, xy, text, f, fill, track=0.14):
+    """Upper-case label with letter-spacing."""
+    x, y = xy
+    for ch in text.upper():
+        d.text((x, y), ch, font=f, fill=fill)
+        x += d.textlength(ch, font=f) + f.size * track
 
 
 def wrap(d, text, f, maxw):
@@ -120,10 +171,23 @@ def grad(size, a, b, vertical=True):
     return g.resize((w, h)).convert("RGBA")
 
 
-def footer(d, app, colour, sub_colour, x=72, y=H - 104, cta=True):
-    d.text((x, y), app["name"], font=font("bold", 34), fill=colour)
+def icon(slug, size):
+    p = os.path.join(ROOT, "brand", "icons", slug + ".png")
+    if not os.path.exists(p):
+        return None
+    return rounded(Image.open(p).convert("RGB").resize((size, size), Image.LANCZOS), int(size * 0.22))
+
+
+def footer(c, app, colour, sub_colour, x=72, y=H - 112, cta=True):
+    """App icon + name + CTA line, the sign-off on every post."""
+    d = ImageDraw.Draw(c)
+    ic = icon(app["slug"], 64)
+    tx = x
+    if ic:
+        c.alpha_composite(ic, (x, y + 4)); tx = x + 84
+    d.text((tx, y), app["name"], font=font("bold", 32), fill=colour)
     if cta:
-        d.text((x, y + 46), f"{app['cta']}  ·  spikewave.tech", font=font("regular", 26), fill=sub_colour)
+        d.text((tx, y + 42), f"{app['cta']}  ·  spikewave.tech", font=font("regular", 25), fill=sub_colour)
 
 
 # ---------------------------------------------------------------- styles
@@ -132,11 +196,12 @@ def bold_block(s, app):
     """Full app-colour field, huge dark headline, phone bleeding off the bottom."""
     c = grad((W, H), app["accent"], app["accent2"])
     d = ImageDraw.Draw(c)
-    d.text((72, 70), app["name"].upper(), font=font("cond", 34), fill=app["ink"])
+    caps(d, (72, 70), app["name"], font("cond", 34), app["ink"])
     y = text_block(d, (72, 120), s["headline"], font("black", 104), app["ink"], W - 144, lh=1.08)
     y = text_block(d, (72, y + 34), s.get("sub", ""), font("semi", 36), app["ink"], 560, lh=1.3)
-    phone(c, shot(s["shot"]), s.get("phone_x", 660), max(y + 60, 560), s.get("phone_h", 1500), bezel_col=(20, 20, 22))
-    footer(ImageDraw.Draw(c), app, app["ink"], app["ink"], y=H - 110)
+    glow(c, (W - 200, 300), 380, (255, 255, 255), 40)
+    phone(c, shot(s["shot"]), s.get("phone_x", 600), max(y + 40, 500), s.get("phone_h", 1560), tilt=s.get("tilt", 7))
+    footer(c, app, app["ink"], app["ink"], y=H - 110)
     return c
 
 
@@ -144,19 +209,20 @@ def editorial_light(s, app):
     """Cream paper, serif headline, small framed phone, magazine label."""
     c = Image.new("RGBA", (W, H), CREAM + (255,))
     d = ImageDraw.Draw(c)
-    d.text((72, 72), s.get("kicker", "FEATURE").upper(), font=font("cond", 30), fill=app["accent2"])
+    caps(d, (72, 72), s.get("kicker", "Feature"), font("cond", 30), app["accent2"])
     d.line([(72, 118), (W - 72, 118)], fill=(200, 192, 180), width=2)
     y = text_block(d, (72, 150), s["headline"], font("serif", 84), INK, W - 144, lh=1.1)
     text_block(d, (72, y + 14), s.get("sub", ""), font("serif_reg", 34), MUTED, W - 260, lh=1.35)
     phone(c, shot(s["shot"]), 330, max(y + 150, 640), 980, bezel_col=(30, 30, 34))
     c.alpha_composite(Image.new("RGBA", (W, 110), CREAM + (255,)), (0, H - 110))
-    footer(ImageDraw.Draw(c), app, INK, MUTED, y=H - 96)
+    footer(c, app, INK, MUTED, y=H - 96)
     return c
 
 
 def detail_callouts(s, app):
     """One UI card blown up full width, with labelled callouts for each row."""
     c = grad((W, H), (14, 15, 18), app["dark"])
+    glow(c, (W - 120, 260), 420, app["accent"], 40)
     d = ImageDraw.Draw(c)
     y = text_block(d, (72, 80), s["headline"], font("bold", 66), (240, 240, 244), W - 144)
     crop = shot(s["shot"], tuple(s["crop"]))
@@ -176,15 +242,16 @@ def detail_callouts(s, app):
         x = 72 + col * 520
         d.text((x, ly + row * 46), f"{i + 1}", font=font("bold", 30), fill=app["accent"])
         d.text((x + 40, ly + row * 46), label, font=font("regular", 30), fill=(200, 202, 210))
-    footer(d, app, app["accent"], (130, 134, 146))
+    footer(c, app, app["accent"], (130, 134, 146))
     return c
 
 
 def big_number(s, app):
     """Giant number pulled from a real screen; the parts that add up to it as chips."""
     c = Image.new("RGBA", (W, H), app["dark"] + (255,))
+    glow(c, (260, 330), 460, app["accent"], 46)
     d = ImageDraw.Draw(c)
-    d.text((72, 80), s.get("kicker", "").upper(), font=font("cond", 32), fill=app["accent"])
+    caps(d, (72, 80), s.get("kicker", ""), font("cond", 32), app["accent"])
     nf = font("black", 400)
     d.text((60, 120), s["number"], font=nf, fill=app["accent"])
     nw = d.textlength(s["number"], font=nf)
@@ -200,19 +267,20 @@ def big_number(s, app):
         d.text((x + 24, y + 13), chip, font=f, fill=(230, 230, 236))
         x += tw + 70
     text_block(d, (72, y + 120), s.get("sub", ""), font("regular", 32), (150, 154, 166), W - 144, lh=1.35)
-    footer(d, app, app["accent"], (130, 134, 146))
+    footer(c, app, app["accent"], (130, 134, 146))
     return c
 
 
 def problem_type(s, app):
     """Text only: a relatable problem in big type, no screen. Pure hook."""
     c = grad((W, H), (12, 14, 22), (26, 30, 44))
+    glow(c, (W - 160, H - 380), 480, app["accent"], 34)
     d = ImageDraw.Draw(c)
     d.text((64, 40), "\u201c", font=font("serif", 300), fill=app["accent"])
     y = text_block(d, (72, 330), s["headline"], font("serif", 92), (244, 241, 236), W - 144, lh=1.12)
     d.line([(72, y + 40), (232, y + 40)], fill=app["accent"], width=6)
     text_block(d, (72, y + 80), s.get("sub", ""), font("regular", 38), (170, 174, 188), W - 200, lh=1.35)
-    footer(d, app, app["accent"], (130, 134, 146))
+    footer(c, app, app["accent"], (130, 134, 146))
     return c
 
 
@@ -223,13 +291,13 @@ def split_compare(s, app):
     c.alpha_composite(Image.new("RGBA", (W, top_h), (232, 230, 226, 255)))
     c.alpha_composite(grad((W, H - top_h), app["accent"], app["accent2"]), (0, top_h))
     d = ImageDraw.Draw(c)
-    d.text((72, 70), s["a_label"].upper(), font=font("cond", 32), fill=(110, 106, 100))
+    caps(d, (72, 70), s["a_label"], font("cond", 32), (110, 106, 100))
     d.text((72, 120), s["a_value"], font=font("black", 190), fill=(150, 146, 140))
     text_block(d, (72, 350), s["a_note"], font("regular", 36), (110, 106, 100), W - 144)
-    d.text((72, top_h + 60), s["b_label"].upper(), font=font("cond", 32), fill=app["ink"])
+    caps(d, (72, top_h + 60), s["b_label"], font("cond", 32), app["ink"])
     d.text((72, top_h + 110), s["b_value"], font=font("black", 190), fill=app["ink"])
     text_block(d, (72, top_h + 340), s["b_note"], font("semi", 40), app["ink"], W - 144)
-    footer(d, app, app["ink"], app["ink"], y=H - 110)
+    footer(c, app, app["ink"], app["ink"], y=H - 110)
     return c
 
 
@@ -248,6 +316,7 @@ def minimal_phone(s, app):
 def three_steps(s, app):
     """Three phones in a row, numbered: a how-it-works cover."""
     c = grad((W, H), app["dark"], (28, 30, 36))
+    glow(c, (W // 2, 720), 520, app["accent"], 34)
     d = ImageDraw.Draw(c)
     y = text_block(d, (72, 80), s["headline"], font("bold", 70), (240, 240, 244), W - 144)
     h = 640; w = int(1080 * h / 2340); gap = (W - 3 * w) // 4
@@ -258,7 +327,7 @@ def three_steps(s, app):
         d.ellipse([x + w // 2 - 30, top + h + 40, x + w // 2 + 30, top + h + 100], fill=app["accent"])
         d.text((x + w // 2, top + h + 70), str(i + 1), font=font("bold", 34), fill=app["ink"], anchor="mm")
         text_block(d, (x - 20, top + h + 120), label, font("semi", 30), (220, 222, 230), w + 40, align="center")
-    footer(d, app, app["accent"], (130, 134, 146))
+    footer(c, app, app["accent"], (130, 134, 146))
     return c
 
 
@@ -266,9 +335,16 @@ STYLES = {f.__name__: f for f in (bold_block, editorial_light, detail_callouts, 
                                    split_compare, minimal_phone, three_steps)}
 
 
+def grain(img, amount=5):
+    """Fine film grain (about +/-5 levels): lifts flat digital fills."""
+    n = np.asarray(Image.effect_noise(img.size, 40), dtype=np.int16) - 128
+    out = np.asarray(img, dtype=np.int16) + (n * amount // 40)[..., None]
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
+
+
 def render(spec):
     app = APPS[spec["app"]]
-    img = STYLES[spec["style"]](spec, app).convert("RGB")
+    img = grain(STYLES[spec["style"]](spec, app).convert("RGB"))
     os.makedirs(os.path.dirname(os.path.abspath(spec["out"])), exist_ok=True)
     img.save(spec["out"], quality=95)
     return spec["out"]
