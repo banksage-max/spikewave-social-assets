@@ -135,7 +135,7 @@ def bold_block(s, app):
     d.text((72, 70), app["name"].upper(), font=font("cond", 34), fill=app["ink"])
     y = text_block(d, (72, 120), s["headline"], font("black", 104), app["ink"], W - 144, lh=1.08)
     y = text_block(d, (72, y + 34), s.get("sub", ""), font("semi", 36), app["ink"], 560, lh=1.3)
-    phone(c, shot(s["shot"]), 660, max(y + 60, 560), 1500, bezel_col=(20, 20, 22))
+    phone(c, shot(s["shot"]), s.get("phone_x", 660), max(y + 60, 560), s.get("phone_h", 1500), bezel_col=(20, 20, 22))
     footer(ImageDraw.Draw(c), app, app["ink"], app["ink"], y=H - 110)
     return c
 
