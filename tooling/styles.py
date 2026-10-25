@@ -438,8 +438,40 @@ def carousel(s, app):
     return [(f"{i + 1}", sl) for i, sl in enumerate(slides)]
 
 
+def notif_stack(s, app):
+    """The real notification as the hero (research: Life360 / Opal pattern), with the screen it opens below.
+    Only real captures: s["notif"] is a captured notification card, s["card"] (+ optional "card_crop") what it opens."""
+    dark = s.get("dark", True)
+    if dark:
+        c = grad((W, H), (16, 17, 21), app["dark"])
+        glow(c, (W // 2, 520), 520, app["accent"], 46)
+        ink, sub = (244, 244, 248), (170, 174, 188)
+    else:
+        c = grad((W, H), app["accent"], app["accent2"])
+        glow(c, (W - 160, 200), 380, (255, 255, 255), 40)
+        ink, sub = app["ink"], app["ink"]
+    d = ImageDraw.Draw(c)
+    caps(d, (72, 72), s.get("kicker", app["name"]), font("cond", 30), app["accent"] if dark else app["ink"])
+    y = text_block(d, (72, 118), s["headline"], font("bold", 64), ink, W - 144, lh=1.1)
+    n = shot(s["notif"], tuple(s["notif_crop"]) if s.get("notif_crop") else None)
+    nw = W - 120
+    nh = int(n.height * nw / n.width)
+    top = y + 56
+    place(c, rounded(n.resize((nw, nh), Image.LANCZOS), 44), 60, top)
+    if s.get("card"):
+        k = shot(s["card"], tuple(s["card_crop"]) if s.get("card_crop") else None)
+        kw = s.get("card_w", 760)
+        kh = int(k.height * kw / k.width)
+        place(c, rounded(k.resize((kw, kh), Image.LANCZOS), 40), (W - kw) // 2 + 40, top + nh + 70, s.get("card_tilt", -2))
+    if s.get("sub"):
+        text_block(d, (72, H - 210), s["sub"], font("semi", 32), sub, W - 144)
+    footer(c, app, app["accent"] if dark else app["ink"], (150, 154, 166) if dark else app["ink"])
+    return c
+
+
 STYLES = {f.__name__: f for f in (bold_block, editorial_light, detail_callouts, big_number, problem_type,
-                                   split_compare, minimal_phone, three_steps, paid_set, ui_float, carousel)}
+                                   split_compare, minimal_phone, three_steps, paid_set, ui_float, carousel,
+                                   notif_stack)}
 
 
 def grain(img, amount=5):
