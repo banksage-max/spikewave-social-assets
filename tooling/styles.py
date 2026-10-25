@@ -12,27 +12,32 @@ import json, os, sys
 W, H = 1080, 1350
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Fonts: Windows names first, Linux fallbacks for the cloud runner.
-_DIRS = ["C:/Windows/Fonts/", "/usr/share/fonts/truetype/dejavu/", "/usr/share/fonts/truetype/freefont/",
-         os.path.join(ROOT, "tooling", "fonts") + "/"]
+# Fonts: the bundled open-licence fonts in tooling/fonts/ (OFL, see the OFL-*.txt files) come first, so
+# renders look the same locally and on the Linux cloud runner. Entries are "file" or "file@VariationName".
+_DIRS = [os.path.join(ROOT, "tooling", "fonts") + "/", "C:/Windows/Fonts/",
+         "/usr/share/fonts/truetype/dejavu/", "/usr/share/fonts/truetype/freefont/"]
 _ALIAS = {
-    "black": ["seguibl.ttf", "DejaVuSans-Bold.ttf"],
-    "bold": ["segoeuib.ttf", "DejaVuSans-Bold.ttf"],
-    "semi": ["seguisb.ttf", "DejaVuSans-Bold.ttf"],
-    "regular": ["segoeui.ttf", "DejaVuSans.ttf"],
-    "light": ["segoeuil.ttf", "DejaVuSans-ExtraLight.ttf", "DejaVuSans.ttf"],
-    "serif": ["GeorgiaPro-Bold.ttf", "georgiab.ttf", "DejaVuSerif-Bold.ttf"],
-    "serif_reg": ["GeorgiaPro-Regular.ttf", "georgia.ttf", "DejaVuSerif.ttf"],
-    "cond": ["bahnschrift.ttf", "ArialNovaCond-Bold.ttf", "DejaVuSansCondensed-Bold.ttf"],
+    "black": ["ArchivoBlack-Regular.ttf", "seguibl.ttf", "DejaVuSans-Bold.ttf"],
+    "bold": ["Inter-Variable.ttf@Bold", "segoeuib.ttf", "DejaVuSans-Bold.ttf"],
+    "semi": ["Inter-Variable.ttf@SemiBold", "seguisb.ttf", "DejaVuSans-Bold.ttf"],
+    "regular": ["Inter-Variable.ttf@Regular", "segoeui.ttf", "DejaVuSans.ttf"],
+    "light": ["Inter-Variable.ttf@Light", "segoeuil.ttf", "DejaVuSans.ttf"],
+    "serif": ["DMSerifDisplay-Regular.ttf", "GeorgiaPro-Bold.ttf", "DejaVuSerif-Bold.ttf"],
+    "serif_reg": ["SourceSerif4-Variable.ttf@Regular", "georgia.ttf", "DejaVuSerif.ttf"],
+    "cond": ["BarlowCondensed-SemiBold.ttf", "bahnschrift.ttf", "DejaVuSansCondensed-Bold.ttf"],
     "mono": ["consolab.ttf", "DejaVuSansMono-Bold.ttf"],
 }
 
 
 def font(kind, size):
     for cand in _ALIAS[kind]:
+        name, _, var = cand.partition("@")
         for d in _DIRS:
-            if os.path.exists(d + cand):
-                return ImageFont.truetype(d + cand, size)
+            if os.path.exists(d + name):
+                f = ImageFont.truetype(d + name, size)
+                if var:
+                    f.set_variation_by_name(var)
+                return f
     return ImageFont.load_default()
 
 
@@ -168,7 +173,7 @@ def detail_callouts(s, app):
     ly = top + ch + 44
     for i, (_, label) in enumerate(s["callouts"]):
         col, row = i % 2, i // 2
-        x = 72 + col * 480
+        x = 72 + col * 520
         d.text((x, ly + row * 46), f"{i + 1}", font=font("bold", 30), fill=app["accent"])
         d.text((x + 40, ly + row * 46), label, font=font("regular", 30), fill=(200, 202, 210))
     footer(d, app, app["accent"], (130, 134, 146))
@@ -183,7 +188,7 @@ def big_number(s, app):
     nf = font("black", 400)
     d.text((60, 120), s["number"], font=nf, fill=app["accent"])
     nw = d.textlength(s["number"], font=nf)
-    d.text((80 + nw, 420), s["unit"], font=font("bold", 80), fill=(240, 240, 244))
+    d.text((80 + nw, 380), s["unit"], font=font("bold", 80), fill=(240, 240, 244))
     y = text_block(d, (72, 610), s["headline"], font("bold", 58), (240, 240, 244), W - 144)
     x, y = 72, y + 40
     for chip in s["chips"]:
