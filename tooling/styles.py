@@ -252,7 +252,7 @@ def big_number(s, app):
     glow(c, (260, 330), 460, app["accent"], 46)
     d = ImageDraw.Draw(c)
     caps(d, (72, 80), s.get("kicker", ""), font("cond", 32), app["accent"])
-    nf = font("black", 400)
+    nf = font("black", s.get("number_size", 400))
     d.text((60, 120), s["number"], font=nf, fill=app["accent"])
     nw = d.textlength(s["number"], font=nf)
     d.text((80 + nw, 380), s["unit"], font=font("bold", 80), fill=(240, 240, 244))
