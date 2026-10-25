@@ -457,12 +457,14 @@ def notif_stack(s, app):
     nw = W - 120
     nh = int(n.height * nw / n.width)
     top = y + 56
-    place(c, rounded(n.resize((nw, nh), Image.LANCZOS), 44), 60, top)
+    nr = int(s.get("notif_r", 44 * n.width / nw) * nw / n.width)  # card's own corner radius, scaled
+    place(c, rounded(n.resize((nw, nh), Image.LANCZOS), nr), 60, top)
     if s.get("card"):
         k = shot(s["card"], tuple(s["card_crop"]) if s.get("card_crop") else None)
         kw = s.get("card_w", 760)
         kh = int(k.height * kw / k.width)
-        place(c, rounded(k.resize((kw, kh), Image.LANCZOS), 40), (W - kw) // 2 + 40, top + nh + 70, s.get("card_tilt", -2))
+        kr = int(s.get("card_r", 40 * k.width / kw) * kw / k.width)
+        place(c, rounded(k.resize((kw, kh), Image.LANCZOS), kr), (W - kw) // 2 + 40, top + nh + 70, s.get("card_tilt", -2))
     if s.get("sub"):
         text_block(d, (72, H - 210), s["sub"], font("semi", 32), sub, W - 144)
     footer(c, app, app["accent"] if dark else app["ink"], (150, 154, 166) if dark else app["ink"])
