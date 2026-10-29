@@ -48,6 +48,8 @@ APPS = {  # slug added below
                      ink=(20, 12, 8), cta="Free on Google Play"),
     "which_box": dict(name="Which Box", accent=(134, 231, 212), accent2=(49, 108, 100), dark=(17, 20, 19),
                       ink=(8, 28, 25), cta="Coming 12 Jan 2027"),
+    "stopby": dict(name="Stopby Reminders", accent=(222, 128, 84), accent2=(166, 74, 38), dark=(24, 16, 12),
+                   ink=(30, 12, 4), cta="Pre-register on Google Play"),  # palette sampled from the app icon
     "knock": dict(name="Knock", accent=(96, 165, 250), accent2=(37, 99, 235), dark=(11, 15, 25),
                   ink=(5, 12, 30), cta="Live on Google Play"),
 }
