@@ -50,6 +50,8 @@ APPS = {  # slug added below
                       ink=(8, 28, 25), cta="Coming 12 Jan 2027"),
     "stopby": dict(name="Stopby Reminders", accent=(222, 128, 84), accent2=(166, 74, 38), dark=(24, 16, 12),
                    ink=(30, 12, 4), cta="Pre-register on Google Play"),  # palette sampled from the app icon
+    "honest_km": dict(name="Honest Km", accent=(96, 226, 200), accent2=(24, 88, 72), dark=(8, 36, 34),
+                      ink=(4, 26, 22), cta="Coming 23 Nov"),  # palette sampled from the app icon
     "knock": dict(name="Knock", accent=(96, 165, 250), accent2=(37, 99, 235), dark=(11, 15, 25),
                   ink=(5, 12, 30), cta="Live on Google Play"),
 }
