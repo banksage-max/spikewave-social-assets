@@ -155,15 +155,15 @@ class Particles:
         c.alpha_composite(lay)
 
 
-_NOISE = None
+_NOISE = {}
 
 
 def dither(img):
     """Fixed fine noise (+/-3 levels) so gradients and glows don't band after H.264."""
-    global _NOISE
-    if _NOISE is None:
-        _NOISE = (np.random.default_rng(3).random((H, W)) * 7 - 3.5).astype(np.int16)
-    a = np.asarray(img, dtype=np.int16) + _NOISE[..., None]
+    key = (img.height, img.width)
+    if key not in _NOISE:
+        _NOISE[key] = (np.random.default_rng(3).random(key) * 7 - 3.5).astype(np.int16)
+    a = np.asarray(img, dtype=np.int16) + _NOISE[key][..., None]
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
 
 
