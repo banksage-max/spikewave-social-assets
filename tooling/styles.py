@@ -46,7 +46,7 @@ def font(kind, size):
 APPS = {  # slug added below
     "leave_by": dict(name="Leave By", accent=(255, 122, 61), accent2=(240, 74, 18), dark=(17, 17, 19),
                      ink=(20, 12, 8), cta="Free on Google Play"),
-    "which_box": dict(name="Which Box", accent=(134, 231, 212), accent2=(49, 108, 100), dark=(17, 20, 19),
+    "which_box": dict(name="Kistly", accent=(134, 231, 212), accent2=(49, 108, 100), dark=(17, 20, 19),
                       ink=(8, 28, 25), cta="Coming 12 Jan 2027"),
     "stopby": dict(name="Stopby Reminders", accent=(222, 128, 84), accent2=(166, 74, 38), dark=(24, 16, 12),
                    ink=(30, 12, 4), cta="Pre-register on Google Play"),  # palette sampled from the app icon
