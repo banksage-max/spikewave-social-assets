@@ -1,7 +1,7 @@
 """Stopby Reminders icon v2 (owner, 11 Nov 2026: variant 1 "Arriving dot"): violet tile, solid bell inside an
 open ring, with a dot arriving at the gap. Exports the masters the app and stores need.
 
-  python tooling/stopby_icon.py   ->  brand/icons/stopby-v2/
+  python tooling/stopby_icon.py [teal|violet]   ->  brand/icons/stopby-v3-teal/ (or stopby-v2/ for violet)
     icon-1024.png                 full square, opaque (App Store, Play 512 source, legacy launcher)
     play-512.png                  Play store listing icon
     adaptive-foreground-1024.png  Android adaptive foreground, glyph inside the 66/108 safe zone, transparent
@@ -18,8 +18,17 @@ from PIL import Image, ImageDraw, ImageFilter
 S, K = 1024, 4
 N = S * K
 C = N / 2
-V1, V2 = (124, 92, 255), (70, 38, 200)   # #7C5CFF -> #4626C8
-OUT = os.path.join(os.path.dirname(__file__), "..", "brand", "icons", "stopby-v2")
+import sys
+
+PALETTES = {
+    # v2: violet (owner picked 11 Nov, then dropped the same day)
+    "violet": dict(v1=(124, 92, 255), v2=(70, 38, 200), shadow=(20, 0, 60), out="stopby-v2"),
+    # v3: teal (owner's final choice, 11 Nov): #13968A -> #0D6B63, matches the app accent #0F766E
+    "teal": dict(v1=(19, 150, 138), v2=(13, 107, 99), shadow=(0, 36, 32), out="stopby-v3-teal"),
+}
+PAL = PALETTES[sys.argv[1] if len(sys.argv) > 1 else "teal"]
+V1, V2 = PAL["v1"], PAL["v2"]
+OUT = os.path.join(os.path.dirname(__file__), "..", "brand", "icons", PAL["out"])
 
 
 def background():
@@ -80,7 +89,7 @@ def glyph():
 
 def with_shadow(base, mask):
     img = base.copy()
-    sh = Image.new("RGBA", (N, N), (20, 0, 60, 0))
+    sh = Image.new("RGBA", (N, N), PAL["shadow"] + (0,))
     sh.putalpha(mask.filter(ImageFilter.GaussianBlur(N / 70)).point(lambda v: int(v * 0.35)))
     img.alpha_composite(sh, (0, int(N / 90)))
     ink = Image.new("RGBA", (N, N), (255, 255, 255, 255))
