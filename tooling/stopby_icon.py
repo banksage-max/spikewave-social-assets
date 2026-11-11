@@ -1,7 +1,7 @@
 """Stopby Reminders icon v2 (owner, 11 Nov 2026: variant 1 "Arriving dot"): violet tile, solid bell inside an
 open ring, with a dot arriving at the gap. Exports the masters the app and stores need.
 
-  python tooling/stopby_icon.py [teal|violet]   ->  brand/icons/stopby-v3-teal/ (or stopby-v2/ for violet)
+  python tooling/stopby_icon.py [teal|violet] [v2|A|B|C] [outdir]   ->  brand/icons/stopby-v3-teal/ (or stopby-v2/ for violet)
     icon-1024.png                 full square, opaque (App Store, Play 512 source, legacy launcher)
     play-512.png                  Play store listing icon
     adaptive-foreground-1024.png  Android adaptive foreground, glyph inside the 66/108 safe zone, transparent
@@ -27,8 +27,9 @@ PALETTES = {
     "teal": dict(v1=(19, 150, 138), v2=(13, 107, 99), shadow=(0, 36, 32), out="stopby-v3-teal"),
 }
 PAL = PALETTES[sys.argv[1] if len(sys.argv) > 1 else "teal"]
+LAYOUT = sys.argv[2] if len(sys.argv) > 2 else "v2"
 V1, V2 = PAL["v1"], PAL["v2"]
-OUT = os.path.join(os.path.dirname(__file__), "..", "brand", "icons", PAL["out"])
+OUT = os.path.join(os.path.dirname(__file__), "..", "brand", "icons", sys.argv[3] if len(sys.argv) > 3 else PAL["out"])
 
 
 def background():
@@ -67,22 +68,43 @@ def bell(d, cx, cy, h):
     d.ellipse([cx - cr, c2 - cr, cx + cr, c2 + cr], fill=255)
 
 
-def glyph():
-    """White glyph mask on N x N: open ring (gap at top right), arriving dot, bell."""
+# Glyph layouts. "v2" = original single arriving dot at the ring gap.
+# v4 (owner, 11 Nov): three radar blips on the outer ring ("a radar picking up alerts").
+#   each dot = (angle in degrees, clockwise from 3 o'clock; radius as fraction of N)
+LAYOUTS = {
+    "v2": dict(gap=(-30, 250), dots=[(-50, 0.042)], halo=False),
+    # A: closed ring, three blips of falling size, like a sweep that just passed them
+    "A": dict(gap=None, dots=[(-40, 0.050), (75, 0.040), (200, 0.032)], halo=True),
+    # B: open ring (gap top-right), three blips spread round the ring, the biggest at the gap
+    "B": dict(gap=(-25, 255), dots=[(-50, 0.048), (110, 0.042), (185, 0.042)], halo=False),  # owner pick 11 Nov -> v4
+    # C: closed ring, three equal blips clustered on the upper-right quadrant (fresh hits)
+    "C": dict(gap=None, dots=[(-75, 0.036), (-35, 0.046), (5, 0.036)], halo=True),
+}
+
+
+def glyph(layout="v2"):
+    """White glyph mask on N x N: outer ring (open or closed), blips on the ring, bell."""
+    L = LAYOUTS[layout]
     m = Image.new("L", (N, N), 0)
     d = ImageDraw.Draw(m)
     r, w = N * 0.335, N * 0.042
-    rc = r - w / 2                     # centreline radius, so stroke and round caps share one centre
-    ts = np.radians(np.linspace(-30, 250, 720))
+    rc = r - w / 2                     # centreline radius, so stroke, caps and dots share one centre
+    a0, a1 = L["gap"] if L["gap"] else (0, 360)
+    ts = np.radians(np.linspace(a0, a1, 1440))
     outer = [(C + r * math.cos(t), C + r * math.sin(t)) for t in ts]
     inner = [(C + (r - w) * math.cos(t), C + (r - w) * math.sin(t)) for t in ts[::-1]]
     d.polygon(outer + inner, fill=255)                     # ring as one filled band: smooth edges
-    pts = [(C + rc * math.cos(ts[0]), C + rc * math.sin(ts[0])), (C + rc * math.cos(ts[-1]), C + rc * math.sin(ts[-1]))]
-    for x, y in pts:
-        d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=255)
-    a = math.radians(-50)
-    x, y = C + (r - w / 2) * math.cos(a), C + (r - w / 2) * math.sin(a)
-    d.ellipse([x - N * 0.042, y - N * 0.042, x + N * 0.042, y + N * 0.042], fill=255)
+    if L["gap"]:
+        for t in (ts[0], ts[-1]):
+            x, y = C + rc * math.cos(t), C + rc * math.sin(t)
+            d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=255)
+    for ang, rad in L["dots"]:
+        a = math.radians(ang)
+        x, y = C + rc * math.cos(a), C + rc * math.sin(a)
+        if L["halo"]:                  # knock a clear gap round the blip so it reads at small sizes
+            hr = N * rad + w * 0.75
+            d.ellipse([x - hr, y - hr, x + hr, y + hr], fill=0)
+        d.ellipse([x - N * rad, y - N * rad, x + N * rad, y + N * rad], fill=255)
     bell(d, C, C + N * 0.005, N * 0.38)
     return m
 
@@ -108,15 +130,19 @@ def scaled(mask, k):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    g = glyph()
+    g = glyph(LAYOUT)
     full = with_shadow(background(), g)
     down = lambda im: im.resize((S, S), Image.LANCZOS)
     icon = down(full).convert("RGB")
     icon.save(os.path.join(OUT, "icon-1024.png"))
     icon.resize((512, 512), Image.LANCZOS).save(os.path.join(OUT, "play-512.png"))
     down(background()).convert("RGB").save(os.path.join(OUT, "adaptive-background-1024.png"))
-    # glyph spans ~0.76 of the tile; the adaptive safe zone is 66/108 = 0.61 -> scale 0.8
-    gs = scaled(g, 0.80)
+    # fit the glyph's measured extent into the adaptive safe zone (66/108 of the tile)
+    bb = g.getbbox()
+    extent = max(bb[2] - bb[0], bb[3] - bb[1], 2 * max(C - bb[0], bb[2] - C, C - bb[1], bb[3] - C)) / N
+    k = min(0.80, (66 / 108) / extent)
+    gs = scaled(g, k)
+    print(f"glyph extent {extent:.3f} -> adaptive scale {k:.3f}")
     fg = Image.new("RGBA", (N, N), (0, 0, 0, 0))
     fg = with_shadow(fg, gs)
     down(fg).save(os.path.join(OUT, "adaptive-foreground-1024.png"))
