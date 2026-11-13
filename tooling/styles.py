@@ -126,19 +126,23 @@ def phone(canvas, im, x, y, h, bezel=14, r=58, bezel_col=None, shade=True, tilt=
     return (x - sx, y - sy, x - sx + L.width, y - sy + L.height)
 
 
+GLOWS = False   # house rule (owner, 13 Nov 2026): no soft colour glows; they read as template design
+
+
 def glow(c, xy, radius, colour, alpha=90):
+    if not GLOWS:
+        return
     g = Image.new("RGBA", c.size, (0, 0, 0, 0))
     x, y = xy
     ImageDraw.Draw(g).ellipse([x - radius, y - radius, x + radius, y + radius], fill=tuple(colour) + (alpha,))
     c.alpha_composite(g.filter(ImageFilter.GaussianBlur(radius * 0.6)))
 
 
-def caps(d, xy, text, f, fill, track=0.14):
-    """Upper-case label with letter-spacing."""
-    x, y = xy
-    for ch in text.upper():
-        d.text((x, y), ch, font=f, fill=fill)
-        x += d.textlength(ch, font=f) + f.size * track
+def caps(d, xy, text, f, fill, track=0.0):
+    """Small label above a headline. Since 13 Nov 2026: sentence case, no letter-spacing, in the semi-bold body
+    face (the tracked upper-case kicker was dropped). Kept under the old name so callers need no change."""
+    f = font("semi", max(int(f.size * 0.92), 26))
+    d.text(xy, text[:1].upper() + text[1:] if text else "", font=f, fill=fill)
 
 
 def wrap(d, text, f, maxw):
@@ -196,9 +200,19 @@ def footer(c, app, colour, sub_colour, x=72, y=H - 112, cta=True):
 
 # ---------------------------------------------------------------- styles
 
+PAPER, PAPER_INK, PAPER_MUTED = (247, 245, 240), (24, 24, 26), (104, 100, 94)
+
+
+def tone(s, app):
+    """Colours for the text-led styles. Default is light paper (owner, 13 Nov 2026: fewer dark cards);
+    pass "tone": "dark" in the spec for at most 1 post in 3. Returns bg, text, muted, accent (readable on bg)."""
+    if s.get("tone", "light") == "dark":
+        return (16, 17, 20), (240, 240, 244), (150, 154, 166), app["accent"]
+    return PAPER, PAPER_INK, PAPER_MUTED, app["accent2"]
+
 def bold_block(s, app):
     """Full app-colour field, huge dark headline, phone bleeding off the bottom."""
-    c = grad((W, H), app["accent"], app["accent2"])
+    c = Image.new("RGBA", (W, H), app["accent"] + (255,))
     d = ImageDraw.Draw(c)
     caps(d, (72, 70), app["name"], font("cond", 34), app["ink"])
     y = text_block(d, (72, 120), s["headline"], font("black", 104), app["ink"], W - 144, lh=1.08)
@@ -225,10 +239,10 @@ def editorial_light(s, app):
 
 def detail_callouts(s, app):
     """One UI card blown up full width, with labelled callouts for each row."""
-    c = grad((W, H), (14, 15, 18), app["dark"])
-    glow(c, (W - 120, 260), 420, app["accent"], 40)
+    bg, fg, mut, acc = tone(s, app)
+    c = Image.new("RGBA", (W, H), bg + (255,))
     d = ImageDraw.Draw(c)
-    y = text_block(d, (72, 80), s["headline"], font("bold", 66), (240, 240, 244), W - 144)
+    y = text_block(d, (72, 80), s["headline"], font("bold", 66), fg, W - 144)
     crop = shot(s["shot"], tuple(s["crop"]))
     cw = W - 2 * 72 - 40
     ch = int(crop.height * cw / crop.width)
@@ -238,53 +252,51 @@ def detail_callouts(s, app):
     sc = cw / crop.width
     for i, (ry, label) in enumerate(s["callouts"]):
         cy = top + int(ry * sc)
-        d.ellipse([W - 92, cy - 22, W - 48, cy + 22], fill=app["accent"])
-        d.text((W - 70, cy), str(i + 1), font=font("bold", 26), fill=app["ink"], anchor="mm")
+        d.ellipse([W - 92, cy - 22, W - 48, cy + 22], fill=acc)
+        d.text((W - 70, cy), str(i + 1), font=font("bold", 26), fill=bg, anchor="mm")
     ly = top + ch + 44
     for i, (_, label) in enumerate(s["callouts"]):
         col, row = i % 2, i // 2
         x = 72 + col * 520
-        d.text((x, ly + row * 46), f"{i + 1}", font=font("bold", 30), fill=app["accent"])
-        d.text((x + 40, ly + row * 46), label, font=font("regular", 30), fill=(200, 202, 210))
-    footer(c, app, app["accent"], (130, 134, 146))
+        d.text((x, ly + row * 46), f"{i + 1}", font=font("bold", 30), fill=acc)
+        d.text((x + 40, ly + row * 46), label, font=font("regular", 30), fill=mut)
+    footer(c, app, fg, mut)
     return c
 
 
 def big_number(s, app):
     """Giant number pulled from a real screen; the parts that add up to it as chips."""
-    c = Image.new("RGBA", (W, H), app["dark"] + (255,))
-    glow(c, (260, 330), 460, app["accent"], 46)
+    bg, fg, mut, acc = tone(s, app)
+    c = Image.new("RGBA", (W, H), bg + (255,))
     d = ImageDraw.Draw(c)
-    caps(d, (72, 80), s.get("kicker", ""), font("cond", 32), app["accent"])
+    caps(d, (72, 80), s.get("kicker", ""), font("cond", 32), mut)
     nf = font("black", s.get("number_size", 400))
-    d.text((60, 120), s["number"], font=nf, fill=app["accent"])
+    d.text((60, 120), s["number"], font=nf, fill=acc)
     nw = d.textlength(s["number"], font=nf)
-    d.text((80 + nw, 380), s["unit"], font=font("bold", 80), fill=(240, 240, 244))
-    y = text_block(d, (72, 610), s["headline"], font("bold", 58), (240, 240, 244), W - 144)
+    d.text((80 + nw, 380), s["unit"], font=font("bold", 80), fill=fg)
+    y = text_block(d, (72, 610), s["headline"], font("bold", 58), fg, W - 144)
     x, y = 72, y + 40
     for chip in s["chips"]:
         f = font("semi", 32)
         tw = d.textlength(chip, font=f)
         if x + tw + 56 > W - 72:
             x, y = 72, y + 84
-        d.rounded_rectangle([x, y, x + tw + 48, y + 66], radius=33, outline=app["accent"], width=3)
-        d.text((x + 24, y + 13), chip, font=f, fill=(230, 230, 236))
+        d.rounded_rectangle([x, y, x + tw + 48, y + 66], radius=12, outline=mut, width=2)
+        d.text((x + 24, y + 13), chip, font=f, fill=fg)
         x += tw + 70
-    text_block(d, (72, y + 120), s.get("sub", ""), font("regular", 32), (150, 154, 166), W - 144, lh=1.35)
-    footer(c, app, app["accent"], (130, 134, 146))
+    text_block(d, (72, y + 120), s.get("sub", ""), font("regular", 32), mut, W - 144, lh=1.35)
+    footer(c, app, fg, mut)
     return c
 
 
 def problem_type(s, app):
     """Text only: a relatable problem in big type, no screen. Pure hook."""
-    c = grad((W, H), (12, 14, 22), (26, 30, 44))
-    glow(c, (W - 160, H - 380), 480, app["accent"], 34)
+    bg, fg, mut, acc = tone(s, app)
+    c = Image.new("RGBA", (W, H), bg + (255,))
     d = ImageDraw.Draw(c)
-    d.text((64, 40), "\u201c", font=font("serif", 300), fill=app["accent"])
-    y = text_block(d, (72, 330), s["headline"], font("serif", 92), (244, 241, 236), W - 144, lh=1.12)
-    d.line([(72, y + 40), (232, y + 40)], fill=app["accent"], width=6)
-    text_block(d, (72, y + 80), s.get("sub", ""), font("regular", 38), (170, 174, 188), W - 200, lh=1.35)
-    footer(c, app, app["accent"], (130, 134, 146))
+    y = text_block(d, (72, 150), s["headline"], font("serif", 96), fg, W - 144, lh=1.12)
+    text_block(d, (72, y + 56), s.get("sub", ""), font("regular", 38), mut, W - 200, lh=1.35)
+    footer(c, app, fg, mut)
     return c
 
 
@@ -293,7 +305,7 @@ def split_compare(s, app):
     c = Image.new("RGBA", (W, H), (0, 0, 0, 255))
     top_h = 560
     c.alpha_composite(Image.new("RGBA", (W, top_h), (232, 230, 226, 255)))
-    c.alpha_composite(grad((W, H - top_h), app["accent"], app["accent2"]), (0, top_h))
+    c.alpha_composite(Image.new("RGBA", (W, H - top_h), app["accent"] + (255,)), (0, top_h))
     d = ImageDraw.Draw(c)
     caps(d, (72, 70), s["a_label"], font("cond", 32), (110, 106, 100))
     d.text((72, 120), s["a_value"], font=font("black", 190), fill=(150, 146, 140))
@@ -319,19 +331,18 @@ def minimal_phone(s, app):
 
 def three_steps(s, app):
     """Three phones in a row, numbered: a how-it-works cover."""
-    c = grad((W, H), app["dark"], (28, 30, 36))
-    glow(c, (W // 2, 720), 520, app["accent"], 34)
+    bg, fg, mut, acc = tone(s, app)
+    c = Image.new("RGBA", (W, H), bg + (255,))
     d = ImageDraw.Draw(c)
-    y = text_block(d, (72, 80), s["headline"], font("bold", 70), (240, 240, 244), W - 144)
+    y = text_block(d, (72, 80), s["headline"], font("bold", 70), fg, W - 144)
     h = 640; w = int(1080 * h / 2340); gap = (W - 3 * w) // 4
     top = max(y + 70, 330)
     for i, (path, label) in enumerate(s["steps"]):
         x = gap + i * (w + gap)
         phone(c, shot(path), x, top, h, bezel=8, r=32)
-        d.ellipse([x + w // 2 - 30, top + h + 40, x + w // 2 + 30, top + h + 100], fill=app["accent"])
-        d.text((x + w // 2, top + h + 70), str(i + 1), font=font("bold", 34), fill=app["ink"], anchor="mm")
-        text_block(d, (x - 20, top + h + 120), label, font("semi", 30), (220, 222, 230), w + 40, align="center")
-    footer(c, app, app["accent"], (130, 134, 146))
+        d.text((x + w // 2, top + h + 66), str(i + 1), font=font("bold", 40), fill=acc, anchor="mm")
+        text_block(d, (x - 20, top + h + 110), label, font("semi", 30), fg, w + 40, align="center")
+    footer(c, app, fg, mut)
     return c
 
 
