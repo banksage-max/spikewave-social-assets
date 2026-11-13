@@ -20,7 +20,7 @@
   "shot": "source-screenshots/leave-by/dark-01-today-hero-chained.png", "crop": [40, 340, 1040, 1220],
   "callouts": [[240, "Minutes to go"], [430, "On track, or not"], [630, "Time to leave"], [710, "From where you are"]]},
  {"app": "honest_km", "style": "big_number", "out": "2026-11-12/spikewave-whats-next.png",
-  "kicker": "From Spikewave, Johannesburg", "number": "23", "unit": "Nov",
+  "kicker": "From Spikewave", "number": "23", "unit": "Nov",
   "headline": "Honest Km, our km logbook, is coming to Google Play.",
   "chips": ["Stopby Reminders: live", "Leave By: live", "Kistly: 12 Jan"],
   "sub": "Follow Spikewave for launch dates and new features."}
