@@ -26,7 +26,7 @@ import styles as st  # noqa: E402
 
 FF = os.environ.get("FFMPEG", r"C:\Users\vundl\anaconda3\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe")
 W, H, FPS = 1080, 1920, 30
-INK, SUB = (246, 247, 250), (178, 183, 196)
+INK, SUB = (24, 24, 26), (104, 100, 94)   # light paper look since 13 Nov 2026 (was white on dark)
 SS = 2  # supersampling factor for the tile
 
 
@@ -168,17 +168,8 @@ def dither(img):
 
 
 def background(app, t, dark=False):
-    """Deep app-tinted gradient with a slow drifting light."""
-    if dark:
-        top, bot = (16, 16, 20), (6, 6, 8)
-    else:
-        top = tuple(int(v * 0.5) for v in app["accent2"])
-        bot = tuple(int(v * 0.9) for v in app["dark"])
-    c = st.grad((W, H), top, bot).convert("RGBA")
-    gx = W * (0.35 + 0.3 * math.sin(t * 0.3))
-    gy = H * (0.22 + 0.08 * math.cos(t * 0.23))
-    st.glow(c, (int(gx), int(gy)), 900, (255, 255, 255), 12 if dark else 20)
-    return c
+    """Flat light paper (owner, 13 Nov 2026: no dark gradients or glows). `dark` is kept for callers and ignored."""
+    return Image.new("RGBA", (W, H), st.PAPER + (255,))
 
 
 def fade_text(c, xy, text, f, fill, a, anchor="la", rise=24):

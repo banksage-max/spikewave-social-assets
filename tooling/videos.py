@@ -147,12 +147,8 @@ def text_layer(size, fn):
 
 
 def ground(app, size, spot=(0.5, 0.42)):
-    """Deep app-tinted gradient with one soft spotlight and a faint accent glow."""
-    W, H = size
-    c = st.grad(size, tuple(int(v * 0.5) for v in app["accent2"]), tuple(int(v * 0.9) for v in app["dark"])).convert("RGBA")
-    st.glow(c, (int(W * spot[0]), int(H * spot[1])), int(max(W, H) * 0.42), app["accent"], 26)
-    st.glow(c, (int(W * 0.15), int(H * 0.05)), int(max(W, H) * 0.5), (255, 255, 255), 10)
-    return c
+    """Flat light paper (owner, 13 Nov 2026: no dark gradients or glows)."""
+    return Image.new("RGBA", size, st.PAPER + (255,))
 
 
 # ---------------------------------------------------------------- end cards
@@ -183,7 +179,7 @@ def end_card(app, slug, size, line, store, style="icon"):
         f = st.font("bold", 40)
         tw = d.textlength(store, font=f)
         d.rounded_rectangle([x, y + 50, x + tw + 84, y + 50 + 92], radius=46, fill=ink)
-        d.text((x + (tw + 84) / 2, y + 96), store, font=f, fill=app["accent"], anchor="mm")
+        d.text((x + (tw + 84) / 2, y + 96), store, font=f, fill=app["accent2"], anchor="mm")
         d.text((x, H - (120 if v else 80)), "from Spikewave", font=st.font("semi", 34), fill=ink)
         return c
     c = ground(app, size, (0.5, 0.38))
@@ -221,7 +217,7 @@ def short(spec, out):
 
     def cap_layer(text, words=None):
         def fn(d):
-            st.caps(d, (80, 150), spec["kicker"], f_k, app["accent"])
+            st.caps(d, (80, 150), spec["kicker"], f_k, app["accent2"])
             d.rectangle([80, 196, 80 + 56, 200], fill=app["accent"])
             st.text_block(d, (80, 222), text if words is None else " ".join(text.split()[:words]), f_h, INK, W - 160, lh=1.1)
         return text_layer((W, H), fn)
@@ -298,7 +294,7 @@ def short(spec, out):
             o = intro_bg.copy()
             d = ImageDraw.Draw(o)
             a = ease(t / 0.5)
-            st.caps(d, (90, 640), spec["kicker"], st.font("cond", 40), app["accent"])
+            st.caps(d, (90, 640), spec["kicker"], st.font("cond", 40), app["accent2"])
             st.text_block(d, (90, 700), spec["stat"], st.font("black", 150), INK + (int(255 * a),), W - 180, lh=1.0)
             d.text((90, 1120), spec.get("stat_sub", ""), font=st.font("regular", 44), fill=SUB + (int(255 * a),))
             c.alpha_composite(with_alpha(o, k))
@@ -340,7 +336,7 @@ def explainer(spec, out):
             c = base.copy()
             r = ease(min(t / 1.0, 1))
             phone.place(c, phone.layer(first), PCX, PCY + 600 * (1 - r), lerp(0.95, 1.0, r))
-            mo.fade_text(c, (160, 430), app["name"].upper(), st.font("cond", 44), app["accent"], ease((t - 0.3) / 0.5))
+            mo.fade_text(c, (160, 430), app["name"].upper(), st.font("cond", 44), app["accent2"], ease((t - 0.3) / 0.5))
             lay = text_layer((W, H), lambda d: st.text_block(d, (160, 490), spec["title"], st.font("black", 92), INK, 900, lh=1.04))
             c.alpha_composite(with_alpha(lay, ease((t - 0.5) / 0.6)))
             ln = text_layer((W, H), lambda d: st.text_block(d, (160, 700), spec["line"], st.font("regular", 40), SUB, 820, lh=1.3))
@@ -360,13 +356,13 @@ def explainer(spec, out):
         frames += [frames[-1]] * int(ch.get("hold", 0.8) * FPS)
 
         def draw_text(d, ch=ch, ci=ci):
-            st.caps(d, (160, 330), f"{ci + 1:02d}  /  {total:02d}", st.font("cond", 40), app["accent"])
+            st.caps(d, (160, 330), f"{ci + 1:02d}  /  {total:02d}", st.font("cond", 40), app["accent2"])
             d.rectangle([160, 384, 216, 388], fill=app["accent"])
             y = st.text_block(d, (160, 410), ch["head"], st.font("bold", 66), INK, 800, lh=1.08)
             st.text_block(d, (160, y + 26), ch["body"], st.font("regular", 38), SUB, 760, lh=1.38)
             for j in range(total):
                 d.rounded_rectangle([160 + j * 46, 880, 160 + j * 46 + (34 if j == ci else 14), 892], radius=6,
-                                    fill=(app["accent"] + (255,)) if j == ci else (255, 255, 255, 70))
+                                    fill=(app["accent"] + (255,)) if j == ci else (0, 0, 0, 46))
         txt = text_layer((W, H), draw_text)
         m = len(frames)
         for i, fr in enumerate(frames):
@@ -384,12 +380,12 @@ def explainer(spec, out):
     dur = wr.close(spec.get("music_start", 0))
 
     # thumbnail 1280x720: big text left, icon tile right
-    th = st.grad((1280, 720), tuple(int(v * 0.55) for v in app["accent2"]), app["dark"]).convert("RGBA")
+    th = Image.new("RGBA", (1280, 720), st.PAPER + (255,))
     st.glow(th, (930, 360), 520, app["accent"], 44)
     tt = mo.Tile(slug, 380)
     mo.place_tile(th, mo.turn(tt.render(0.35), 0.06), 950, 370, -9, None, 0)
     d = ImageDraw.Draw(th)
-    st.caps(d, (70, 150), app["name"], st.font("cond", 40), app["accent"])
+    st.caps(d, (70, 150), app["name"], st.font("cond", 40), app["accent2"])
     st.text_block(d, (70, 210), spec["thumb_text"], st.font("black", 92), INK, 640, lh=1.05)
     mo.dither(th.convert("RGB")).save(out[:-4] + "-thumb.jpg", quality=92)
     return dur
