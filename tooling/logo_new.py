@@ -23,7 +23,7 @@ S = 4
 
 def inter(px, w):
     f = ImageFont.truetype(os.path.join(FONTS, "Inter-Variable.ttf"), px)
-    f.set_variation_by_axes([w])
+    f.set_variation_by_axes([32 if px >= 60 else 14, w])  # Inter axes: optical size, weight
     return f
 
 

@@ -29,7 +29,7 @@ SPIKE = [(-1.00, 0.50), (-0.58, 0.50), (-0.44, 0.36), (-0.32, 0.56), (-0.16, 0.0
 
 def inter(px, weight):
     f = ImageFont.truetype(os.path.join(FONTS, "Inter-Variable.ttf"), px)
-    f.set_variation_by_axes([weight])
+    f.set_variation_by_axes([32 if px >= 60 else 14, weight])  # Inter axes: optical size, weight
     return f
 
 

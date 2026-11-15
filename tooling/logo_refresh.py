@@ -21,7 +21,7 @@ S = 4                        # supersample
 
 def inter(size, weight):
     f = ImageFont.truetype(os.path.join(FONTS, "Inter-Variable.ttf"), size)
-    f.set_variation_by_axes([weight])
+    f.set_variation_by_axes([32 if size >= 60 else 14, weight])  # Inter axes: optical size, weight
     return f
 
 
