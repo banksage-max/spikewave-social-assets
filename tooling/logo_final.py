@@ -59,7 +59,7 @@ def banner(w, h, box_w, box_h, k):
     im.paste(t, ((w - t.width) // 2, (h - t.height) // 2 - int(box_h * 0.06)), t)
     d = ImageDraw.Draw(im)
     f = P.inter(int(box_h * 0.085 * k), 450)
-    line = "Mobile apps for Android and iPhone"
+    line = "Purpose-built solutions for real-world problems"   # owner, 15 Nov 2026 (replaces "Mobile apps for Android and iPhone")
     tw = d.textlength(line, font=f)
     d.text(((w - tw) / 2, (h + t.height) / 2 - int(box_h * 0.02)), line, font=f, fill=MUTED)
     return im

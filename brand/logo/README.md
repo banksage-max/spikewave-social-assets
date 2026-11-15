@@ -9,6 +9,9 @@ Never edit the PNGs by hand; change the script and rerun it.
 - **Line:** one hand-drawn line under the name, with the spike under the "k" of "Spike" and a calm wave under "wave" (round 6 "P1b"), drawn slightly thicker than in round 6 (5.8% of cap height).
 - **Icon:** a white serif S above the line on deep navy. The line is a calm wave under the S, and the spike sits just after the S.
 
+## Slogan
+"Purpose-built solutions for real-world problems" (owner, 15 Nov 2026). Set in Inter, muted grey, under the logo on the banners. It replaces "Mobile apps for Android and iPhone".
+
 ## Files
 | File | Use |
 |---|---|
