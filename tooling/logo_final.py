@@ -45,8 +45,9 @@ def icon(size=1024, bg=NAVY):
     sy += shift
     line_y += shift
     d.text(((n - sw) / 2 - b[0], sy - b[1]), "S", font=f, fill=WHITE)
-    x0, x1 = n * 0.24, n * 0.76
-    pts = L1.line_pts(x0, x1, line_y, n * 0.022, n * 0.082, order="spike-wave", spike_at=0.46)
+    x0, x1 = n * 0.20, n * 0.80
+    spike_x = n / 2 + sw / 2 + n * 0.035          # the spike sits just after the S (owner, 15 Nov)
+    pts = L1.line_pts(x0, x1, line_y, n * 0.028, n * 0.115, order="wave-spike", spike_at=(spike_x - x0) / (x1 - x0))
     P.stroke(d, pts, n * 0.032, BLUE_ON_NAVY)
     return im.resize((size, size), Image.LANCZOS)
 
