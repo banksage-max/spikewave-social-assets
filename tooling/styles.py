@@ -500,7 +500,9 @@ def grain(img, amount=5):
 
 def render(spec):
     """Render one spec. Multi-image styles (paid_set, carousel) write <out stem>-<suffix>.png for each image."""
-    app = APPS[spec["app"]]
+    app = dict(APPS[spec["app"]])
+    if spec.get("cta"):
+        app["cta"] = spec["cta"]  # per-post store line (e.g. after a launch date has passed)
     res = STYLES[spec["style"]](spec, app)
     os.makedirs(os.path.dirname(os.path.abspath(spec["out"])), exist_ok=True)
     if not isinstance(res, list):
